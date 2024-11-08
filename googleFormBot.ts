@@ -29,22 +29,43 @@ class GoogleFormBot {
     if (!this.page) throw new Error('Browser not initialized');
   
     try {
-      await this.page.goto(this.formUrl, { waitUntil: 'load', timeout: 60000 });
+      for (let i = 0; i < 300; i++) {
+        console.log(`Enviando respuesta número ${i + 1}`);
   
-      // Llenar el formulario utilizando el método actualizado
-      await this.fillInput('Nombre y apellido', formData['Nombre y apellido']);
-      await this.fillInput('DNI/ Pasaporte', formData['DNI/ Pasaporte']);
-      await this.fillInput('Lugar de residencia', formData['Lugar de residencia']);
-      await this.fillInput('Número de teléfono', formData['Número de teléfono']);
-      await this.fillInput('Correo electrónico', formData['Correo electrónico']);
-      await this.fillInput('Nombre de tu organización', formData['Nombre de tu organización']);
+        await this.page.goto(this.formUrl, { waitUntil: 'load', timeout: 60000 });
   
-      // Enviar el formulario
-      await this.page.locator('//div[@role="button" and contains(text(), "Enviar")]').click();
-      await this.page.waitForSelector('.freebirdFormviewerViewResponseConfirmationMessage', { timeout: 10000 });
+        // Llenar los campos del formulario
+        await this.fillInput('Nombre y apellido', formData['Nombre y apellido']);
+        await this.fillInput('DNI/ Pasaporte', formData['DNI/ Pasaporte']);
+        await this.fillInput('Lugar de residencia', formData['Lugar de residencia']);
+        await this.fillInput('Número de teléfono', formData['Número de teléfono']);
+        await this.fillInput('Correo electrónico', formData['Correo electrónico']);
+        await this.fillInput('Nombre de tu organización', formData['Nombre de tu organización']);
   
-      console.log("Formulario enviado exitosamente");
-      return true;
+        // Hacer clic en el botón de enviar
+        const submitButton = this.page.locator('div[role="button"][aria-label="Submit"]');
+        if (await submitButton.count() > 0) {
+          await submitButton.click();
+          console.log("Formulario enviado exitosamente");
+        } else {
+          console.error('Botón de enviar no encontrado');
+          return;
+        }
+  
+        // Esperar a que aparezca el enlace "Enviar otra respuesta" en lugar del mensaje de confirmación
+        const retryButton = this.page.locator('a:has-text("Enviar otra respuesta")');
+        await retryButton.waitFor({ timeout: 15000 });
+  
+        // Hacer clic en "Enviar otra respuesta"
+        if (await retryButton.count() > 0) {
+          await retryButton.click();
+          console.log("Clic en 'Enviar otra respuesta'");
+          await this.page.waitForTimeout(3000); // Pausa para que la página se recargue
+        } else {
+          console.error('Botón "Enviar otra respuesta" no encontrado');
+          break;
+        }
+      }
   
     } catch (error) {
       console.error('Error filling form:', error);
@@ -52,24 +73,21 @@ class GoogleFormBot {
     }
   }
   
+  
+  
+  
 
   private async fillInput(label: string, value: string | boolean) {
     if (typeof value !== 'string' || !this.page) return;
-  
-    // Encontrar el input usando la clase y el atributo 'aria-labelledby'
-    const inputSelector = `//div[contains(@class, 'rFrNMe')]//span[contains(text(), "${label}")]/ancestor::div[contains(@class, 'rFrNMe')]//input[@type="text"]`;
-    
-    const input = await this.page.locator(inputSelector);
-  
-    if (await input.count() > 0) {
+
+    try {
+      const input = this.page.getByLabel(label);
       await input.fill(value);
       console.log(`Campo "${label}" rellenado con: "${value}"`);
-    } else {
-      console.error(`Campo no encontrado: ${label}`);
+    } catch (error) {
+      console.error(`Campo no encontrado: ${label}`, error);
     }
   }
-  
-  
 
   async close() {
     if (this.browser) {

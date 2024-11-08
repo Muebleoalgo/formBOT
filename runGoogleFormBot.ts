@@ -3,6 +3,14 @@ import { randomBytes } from 'crypto';
 
 const generateToken = (): string => randomBytes(75).toString('base64').slice(0, 100);
 
+function generateRandomEmail(): string {
+  const domains = ["gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "live.com"];
+  const randomDomain = domains[Math.floor(Math.random() * domains.length)];
+  const emailPrefix = randomBytes(10).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10);
+  return `${emailPrefix}@${randomDomain}`;
+}
+
+
 async function runGoogleFormBot() {
   const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSfVI-HUcDeZkBdCqIGw08wPvOl7pXRPcEpPjfTWPedTZyMVVg/viewform';
   const bot = new GoogleFormBot(formUrl);
@@ -15,7 +23,7 @@ async function runGoogleFormBot() {
       'DNI/ Pasaporte': generateToken(),
       'Lugar de residencia': generateToken(),
       'Número de teléfono': generateToken(),
-      'Correo electrónico': `${generateToken()}@example.com`,
+      'Correo electrónico': generateRandomEmail(),
       'Nombre de tu organización': generateToken()
     };
 
