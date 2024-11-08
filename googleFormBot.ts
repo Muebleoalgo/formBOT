@@ -28,7 +28,7 @@ class GoogleFormBot {
 
   // Generar token aleatorio
   private generateToken(): string {
-    return randomBytes(75).toString('base64').slice(0, 100);
+    return randomBytes(75).toString('base64').slice(0, 40);
   }
 
   // Generar correo electrónico aleatorio
@@ -41,15 +41,16 @@ class GoogleFormBot {
 
   async fillForm() {
     if (!this.page) throw new Error('Browser not initialized');
-
+  
     try {
       for (let i = 0; i < 5000; i++) {
         console.log(`Enviando respuesta número ${i + 1}`);
-
+  
         await this.page.goto(this.formUrl, { waitUntil: 'load', timeout: 60000 });
-
+  
         // Generar nuevas respuestas para cada envío
         const formResponses = {
+          'Por favor comprueba que eres un ser humano respondiendo la siguiente pregunta: ¿Cuanto es 5+10?': '15', // Respuesta correcta
           'Nombre y apellido': this.generateToken(),
           'DNI/ Pasaporte': this.generateToken(),
           'Lugar de residencia': this.generateToken(),
@@ -57,15 +58,18 @@ class GoogleFormBot {
           'Correo electrónico': this.generateRandomEmail(),
           'Nombre de tu organización': this.generateToken()
         };
-
-        // Llenar los campos del formulario
+  
+        // Rellenar los campos del formulario
         await this.fillInput('Nombre y apellido', formResponses['Nombre y apellido']);
         await this.fillInput('DNI/ Pasaporte', formResponses['DNI/ Pasaporte']);
         await this.fillInput('Lugar de residencia', formResponses['Lugar de residencia']);
         await this.fillInput('Número de teléfono', formResponses['Número de teléfono']);
         await this.fillInput('Correo electrónico', formResponses['Correo electrónico']);
         await this.fillInput('Nombre de tu organización', formResponses['Nombre de tu organización']);
-
+  
+        // Manejar la pregunta de verificación (captcha)
+        await this.fillInput('Por favor comprueba que eres un ser humano respondiendo la siguiente pregunta:', '15');
+  
         // Hacer clic en el botón de enviar
         const submitButton = this.page.locator('div[role="button"][aria-label="Submit"]');
         if (await submitButton.count() > 0) {
@@ -75,11 +79,11 @@ class GoogleFormBot {
           console.error('Botón de enviar no encontrado');
           return;
         }
-
+  
         // Esperar a que aparezca el enlace "Enviar otra respuesta"
         const retryButton = this.page.locator('a:has-text("Enviar otra respuesta")');
         await retryButton.waitFor({ timeout: 15000 });
-
+  
         // Hacer clic en "Enviar otra respuesta"
         if (await retryButton.count() > 0) {
           await retryButton.click();
@@ -90,24 +94,49 @@ class GoogleFormBot {
           break;
         }
       }
-
+  
     } catch (error) {
       console.error('Error filling form:', error);
       throw error;
     }
   }
+  
 
   private async fillInput(label: string, value: string | boolean) {
     if (typeof value !== 'string' || !this.page) return;
-
+  
     try {
-      const input = this.page.getByLabel(label);
-      await input.fill(value);
-      console.log(`Campo "${label}" rellenado con: "${value}"`);
+      // Intentar encontrar el campo utilizando `getByLabel`
+      const input = await this.page.getByLabel(label);
+  
+      // Si no se encuentra con `getByLabel`, buscar usando un selector alternativo
+      if (!input || (await input.count() === 0)) {
+        console.log(`Intentando encontrar el campo para: "${label}" usando un selector alternativo`);
+  
+        // Selector alternativo para el captcha
+        if (label.includes('¿Cuanto es 5+10?')) {
+          const captchaInput = await this.page.locator('input[aria-labelledby*="i1"]');
+          if (await captchaInput.count() > 0) {
+            await captchaInput.fill(value);
+            console.log(`Campo "${label}" (captcha) rellenado con: "${value}"`);
+            return;
+          }
+        }
+      }
+  
+      // Rellenar el campo si se encontró por `getByLabel`
+      if (input) {
+        await input.fill(value);
+        console.log(`Campo "${label}" rellenado con: "${value}"`);
+      } else {
+        console.error(`Campo no encontrado: ${label}`);
+      }
     } catch (error) {
-      console.error(`Campo no encontrado: ${label}`, error);
+      console.error(`Error al rellenar el campo: ${label}`, error);
     }
   }
+  
+  
 
   async close() {
     if (this.browser) {
