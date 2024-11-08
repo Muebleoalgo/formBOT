@@ -1,4 +1,5 @@
 import { chromium, Page } from '@playwright/test';
+import { randomBytes } from 'crypto';
 
 interface GoogleFormData {
   [key: string]: string | boolean;
@@ -25,23 +26,46 @@ class GoogleFormBot {
     this.page = await context.newPage();
   }
 
-  async fillForm(formData: GoogleFormData) {
+  // Generar token aleatorio
+  private generateToken(): string {
+    return randomBytes(75).toString('base64').slice(0, 100);
+  }
+
+  // Generar correo electrónico aleatorio
+  private generateRandomEmail(): string {
+    const domains = ["gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "live.com"];
+    const randomDomain = domains[Math.floor(Math.random() * domains.length)];
+    const emailPrefix = randomBytes(10).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10);
+    return `${emailPrefix}@${randomDomain}`;
+  }
+
+  async fillForm() {
     if (!this.page) throw new Error('Browser not initialized');
-  
+
     try {
       for (let i = 0; i < 300; i++) {
         console.log(`Enviando respuesta número ${i + 1}`);
-  
+
         await this.page.goto(this.formUrl, { waitUntil: 'load', timeout: 60000 });
-  
+
+        // Generar nuevas respuestas para cada envío
+        const formResponses = {
+          'Nombre y apellido': this.generateToken(),
+          'DNI/ Pasaporte': this.generateToken(),
+          'Lugar de residencia': this.generateToken(),
+          'Número de teléfono': this.generateToken(),
+          'Correo electrónico': this.generateRandomEmail(),
+          'Nombre de tu organización': this.generateToken()
+        };
+
         // Llenar los campos del formulario
-        await this.fillInput('Nombre y apellido', formData['Nombre y apellido']);
-        await this.fillInput('DNI/ Pasaporte', formData['DNI/ Pasaporte']);
-        await this.fillInput('Lugar de residencia', formData['Lugar de residencia']);
-        await this.fillInput('Número de teléfono', formData['Número de teléfono']);
-        await this.fillInput('Correo electrónico', formData['Correo electrónico']);
-        await this.fillInput('Nombre de tu organización', formData['Nombre de tu organización']);
-  
+        await this.fillInput('Nombre y apellido', formResponses['Nombre y apellido']);
+        await this.fillInput('DNI/ Pasaporte', formResponses['DNI/ Pasaporte']);
+        await this.fillInput('Lugar de residencia', formResponses['Lugar de residencia']);
+        await this.fillInput('Número de teléfono', formResponses['Número de teléfono']);
+        await this.fillInput('Correo electrónico', formResponses['Correo electrónico']);
+        await this.fillInput('Nombre de tu organización', formResponses['Nombre de tu organización']);
+
         // Hacer clic en el botón de enviar
         const submitButton = this.page.locator('div[role="button"][aria-label="Submit"]');
         if (await submitButton.count() > 0) {
@@ -51,11 +75,11 @@ class GoogleFormBot {
           console.error('Botón de enviar no encontrado');
           return;
         }
-  
-        // Esperar a que aparezca el enlace "Enviar otra respuesta" en lugar del mensaje de confirmación
+
+        // Esperar a que aparezca el enlace "Enviar otra respuesta"
         const retryButton = this.page.locator('a:has-text("Enviar otra respuesta")');
         await retryButton.waitFor({ timeout: 15000 });
-  
+
         // Hacer clic en "Enviar otra respuesta"
         if (await retryButton.count() > 0) {
           await retryButton.click();
@@ -66,16 +90,12 @@ class GoogleFormBot {
           break;
         }
       }
-  
+
     } catch (error) {
       console.error('Error filling form:', error);
       throw error;
     }
   }
-  
-  
-  
-  
 
   private async fillInput(label: string, value: string | boolean) {
     if (typeof value !== 'string' || !this.page) return;
