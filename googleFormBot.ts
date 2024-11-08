@@ -35,7 +35,7 @@ class GoogleFormBot {
   private generateRandomEmail(): string {
     const domains = ["gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "live.com"];
     const randomDomain = domains[Math.floor(Math.random() * domains.length)];
-    const emailPrefix = randomBytes(10).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10);
+    const emailPrefix = randomBytes(10).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 30);
     return `${emailPrefix}@${randomDomain}`;
   }
 
@@ -43,7 +43,7 @@ class GoogleFormBot {
     if (!this.page) throw new Error('Browser not initialized');
 
     try {
-      for (let i = 0; i < 300; i++) {
+      for (let i = 0; i < 5000; i++) {
         console.log(`Enviando respuesta número ${i + 1}`);
 
         await this.page.goto(this.formUrl, { waitUntil: 'load', timeout: 60000 });
