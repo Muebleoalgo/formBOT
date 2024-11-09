@@ -1,6 +1,7 @@
 {
   "dependencies": {
-    "@playwright/test": "^1.48.2"
+    "@playwright/test": "^1.48.2",
+    "puppeteer": "^23.7.1"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

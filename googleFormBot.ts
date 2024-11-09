@@ -68,7 +68,7 @@ class GoogleFormBot {
         await this.fillInput('Nombre de tu organización', formResponses['Nombre de tu organización']);
   
         // Manejar la pregunta de verificación (captcha)
-        await this.fillInput('Por favor comprueba que eres un ser humano respondiendo la siguiente pregunta:', '15');
+        await this.fillInput('Por favor', '4'); // Ajusta la respuesta según la operación
   
         // Hacer clic en el botón de enviar
         const submitButton = this.page.locator('div[role="button"][aria-label="Submit"]');
@@ -107,34 +107,39 @@ class GoogleFormBot {
   
     try {
       // Intentar encontrar el campo utilizando `getByLabel`
-      const input = await this.page.getByLabel(label);
+      let input = await this.page.getByLabel(label);
   
       // Si no se encuentra con `getByLabel`, buscar usando un selector alternativo
       if (!input || (await input.count() === 0)) {
         console.log(`Intentando encontrar el campo para: "${label}" usando un selector alternativo`);
   
-        // Selector alternativo para el captcha
-        if (label.includes('¿Cuanto es 5+10?')) {
-          const captchaInput = await this.page.locator('input[aria-labelledby*="i1"]');
-          if (await captchaInput.count() > 0) {
-            await captchaInput.fill(value);
-            console.log(`Campo "${label}" (captcha) rellenado con: "${value}"`);
+        // Selector para preguntas que contienen "Por favor"
+        const captchaDiv = await this.page.locator('div:has-text("Por favor")');
+        
+        // Verificar si encontramos el contenedor del captcha
+        if (await captchaDiv.count() > 0) {
+          // Buscar el campo de entrada dentro de ese contenedor
+          input = await captchaDiv.locator('input[type="text"]');
+          if (await input.count() > 0) {
+            await input.fill(value);
+            console.log(`Campo de captcha (que contiene "Por favor") rellenado con: "${value}"`);
             return;
           }
         }
       }
   
-      // Rellenar el campo si se encontró por `getByLabel`
+      // Si se encontró el campo por `getByLabel`, rellenarlo
       if (input) {
         await input.fill(value);
         console.log(`Campo "${label}" rellenado con: "${value}"`);
       } else {
-        console.error(`Campo no encontrado: ${label}`);
+        console.error(`Campo no encontrado para el label: ${label}`);
       }
     } catch (error) {
       console.error(`Error al rellenar el campo: ${label}`, error);
     }
   }
+  
   
   
 
